@@ -7,10 +7,15 @@ from typing import Any, Optional
 import lightning as L
 import numpy as np
 import torch
+
+from lightning.pytorch.loggers import WandbLogger
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger
 from lightning.pytorch.strategies import FSDPStrategy
 from torch.utils.data import DataLoader, IterableDataset
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # support running without installing as a package
 wd = Path(__file__).parent.parent.resolve()
@@ -146,11 +151,13 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
     model_checkpoint = ModelCheckpoint(
         dirpath=out_dir, every_n_train_steps=save_interval, save_last=True, verbose=True
     )
+    wandb_logger = WandbLogger(log_model="all")
+
     trainer = L.Trainer(
         devices=devices,
         strategy=strategy,
         precision=precision,
-        logger=logger,
+        logger=wandb_logger,
         callbacks=[speed_monitor, model_checkpoint],
         max_steps=max_iters,
         max_epochs=1,

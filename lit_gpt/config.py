@@ -110,10 +110,10 @@ class Config:
             from lit_gpt.rmsnorm import RMSNorm
 
             return RMSNorm
-        elif self._norm_class == "FusedRMSNorm":
-            from lit_gpt.rmsnorm import FusedRMSNorm
+        # elif self._norm_class == "FusedRMSNorm":
+        #     from lit_gpt.rmsnorm import FusedRMSNorm
 
-            return FusedRMSNorm
+        #     return FusedRMSNorm
 
         return getattr(torch.nn, self._norm_class)
 
@@ -1038,7 +1038,7 @@ tiny_LLaMA = [
         rotary_percentage=1.0,
         parallel_residual=False,
         bias=False,
-        _norm_class="FusedRMSNorm",
+        _norm_class="RMSNorm",
         norm_eps=1e-6,
         _mlp_class="LLaMAMLP",
         intermediate_size=5632,  # 4x n_embd recommended...
@@ -1056,7 +1056,7 @@ tiny_LLaMA = [
         rotary_percentage=1.0,
         parallel_residual=False,
         bias=False,
-        _norm_class="FusedRMSNorm",
+        _norm_class="RMSNorm",
         norm_eps=1e-6,
         _mlp_class="LLaMAMLP",
         intermediate_size=2048,  # 4x n_embd recommended...
@@ -1074,7 +1074,7 @@ tiny_LLaMA = [
         rotary_percentage=1.0,
         parallel_residual=False,
         bias=False,
-        _norm_class="FusedRMSNorm",
+        _norm_class="RMSNorm",
         norm_eps=1e-6,
         _mlp_class="LLaMAMLP",
         intermediate_size=512,  # 4x n_embd
