@@ -58,7 +58,9 @@ class Config:
         assert self.n_embd % self.n_head == 0
         # vocab size should be a power of 2 to be optimal on hardware. compute the closest value
         if self.padded_vocab_size is None:
-            self.padded_vocab_size = find_multiple(self.vocab_size, self.padding_multiple)
+            self.padded_vocab_size = find_multiple(
+                self.vocab_size, self.padding_multiple
+            )
         else:
             # vocab size shouldn't be larger than padded vocab size
             self.vocab_size = min(self.vocab_size, self.padded_vocab_size)
@@ -108,6 +110,11 @@ class Config:
             from lit_gpt.rmsnorm import RMSNorm
 
             return RMSNorm
+        elif self._norm_class == "FusedRMSNorm":
+            from lit_gpt.rmsnorm import FusedRMSNorm
+
+            return FusedRMSNorm
+
         return getattr(torch.nn, self._norm_class)
 
 
@@ -118,11 +125,23 @@ configs = [
     # https://huggingface.co/stabilityai/stablelm-base-alpha-3b/blob/main/config.json
     dict(org="stabilityai", name="stablelm-base-alpha-3b"),
     # https://huggingface.co/stabilityai/stablelm-base-alpha-7b/blob/main/config.json
-    dict(org="stabilityai", name="stablelm-base-alpha-7b", n_head=48, n_embd=6144, padding_multiple=256),
+    dict(
+        org="stabilityai",
+        name="stablelm-base-alpha-7b",
+        n_head=48,
+        n_embd=6144,
+        padding_multiple=256,
+    ),
     # https://huggingface.co/stabilityai/stablelm-tuned-alpha-3b/blob/main/config.json
     dict(org="stabilityai", name="stablelm-tuned-alpha-3b", n_head=32),
     # https://huggingface.co/stabilityai/stablelm-tuned-alpha-7b/blob/main/config.json
-    dict(org="stabilityai", name="stablelm-tuned-alpha-7b", n_head=48, n_embd=6144, padding_multiple=256),
+    dict(
+        org="stabilityai",
+        name="stablelm-tuned-alpha-7b",
+        n_head=48,
+        n_embd=6144,
+        padding_multiple=256,
+    ),
 ]
 
 ####################
@@ -130,27 +149,80 @@ configs = [
 ####################
 pythia = [
     # https://huggingface.co/EleutherAI/pythia-70m/blob/main/config.json
-    dict(org="EleutherAI", name="pythia-70m", block_size=2048, n_layer=6, n_embd=512, n_head=8, padding_multiple=128),
+    dict(
+        org="EleutherAI",
+        name="pythia-70m",
+        block_size=512,
+        n_layer=6,
+        n_embd=512,
+        n_head=8,
+        padding_multiple=128,
+    ),
     # https://huggingface.co/EleutherAI/pythia-160m/blob/main/config.json
     dict(
-        org="EleutherAI", name="pythia-160m", block_size=2048, n_layer=12, n_embd=768, n_head=12, padding_multiple=128
+        org="EleutherAI",
+        name="pythia-160m",
+        block_size=2048,
+        n_layer=12,
+        n_embd=768,
+        n_head=12,
+        padding_multiple=128,
     ),
     # https://huggingface.co/EleutherAI/pythia-410m/blob/main/config.json
     dict(
-        org="EleutherAI", name="pythia-410m", block_size=2048, n_layer=24, n_embd=1024, n_head=16, padding_multiple=128
+        org="EleutherAI",
+        name="pythia-410m",
+        block_size=2048,
+        n_layer=24,
+        n_embd=1024,
+        n_head=16,
+        padding_multiple=128,
     ),
     # https://huggingface.co/EleutherAI/pythia-1b/blob/main/config.json
-    dict(org="EleutherAI", name="pythia-1b", block_size=2048, n_embd=2048, n_head=8, padding_multiple=128),
+    dict(
+        org="EleutherAI",
+        name="pythia-1b",
+        block_size=2048,
+        n_embd=2048,
+        n_head=8,
+        padding_multiple=128,
+    ),
     # https://huggingface.co/EleutherAI/pythia-1.4b/blob/main/config.json
     dict(
-        org="EleutherAI", name="pythia-1.4b", block_size=2048, n_layer=24, n_embd=2048, n_head=16, padding_multiple=128
+        org="EleutherAI",
+        name="pythia-1.4b",
+        block_size=2048,
+        n_layer=24,
+        n_embd=2048,
+        n_head=16,
+        padding_multiple=128,
     ),
     # https://huggingface.co/EleutherAI/pythia-2.8b/blob/main/config.json
-    dict(org="EleutherAI", name="pythia-2.8b", block_size=2048, n_layer=32, n_embd=2560, padding_multiple=128),
+    dict(
+        org="EleutherAI",
+        name="pythia-2.8b",
+        block_size=2048,
+        n_layer=32,
+        n_embd=2560,
+        padding_multiple=128,
+    ),
     # https://huggingface.co/EleutherAI/pythia-6.9b/blob/main/config.json
-    dict(org="EleutherAI", name="pythia-6.9b", block_size=2048, n_layer=32, padding_multiple=256),
+    dict(
+        org="EleutherAI",
+        name="pythia-6.9b",
+        block_size=2048,
+        n_layer=32,
+        padding_multiple=256,
+    ),
     # https://huggingface.co/EleutherAI/pythia-12b/blob/main/config.json
-    dict(org="EleutherAI", name="pythia-12b", block_size=2048, n_layer=36, n_embd=5120, n_head=40),
+    dict(
+        org="EleutherAI",
+        name="pythia-12b",
+        block_size=2048,
+        n_layer=36,
+        n_embd=5120,
+        n_head=40,
+    ),
 ]
 configs.extend(pythia)
 for c in pythia:
@@ -930,11 +1002,85 @@ stablecode = [
         n_embd=2560,
     ),
     # https://huggingface.co/stabilityai/stablecode-completion-alpha-3b-4k/blob/main/config.json
-    dict(org="stabilityai", name="stablecode-completion-alpha-3b-4k", vocab_size=49152, n_layer=32, n_embd=2560),
+    dict(
+        org="stabilityai",
+        name="stablecode-completion-alpha-3b-4k",
+        vocab_size=49152,
+        n_layer=32,
+        n_embd=2560,
+    ),
     # https://huggingface.co/stabilityai/stablecode-instruct-alpha-3b/blob/main/config.json
-    dict(org="stabilityai", name="stablecode-instruct-alpha-3b", vocab_size=49152, n_layer=32, n_embd=2560),
+    dict(
+        org="stabilityai",
+        name="stablecode-instruct-alpha-3b",
+        vocab_size=49152,
+        n_layer=32,
+        n_embd=2560,
+    ),
 ]
 configs.extend(stablecode)
 
+
+#############################
+# StatNLP Research
+#############################
+tiny_LLaMA = [
+    # https://twitter.com/cwolferesearch/status/1691929174175264858
+    dict(
+        org="StatNLP-research",
+        name="tiny_LLaMA_1b",
+        block_size=2048,
+        vocab_size=32768,
+        padding_multiple=64,
+        n_layer=22,
+        n_head=32,
+        n_embd=2048,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        _norm_class="FusedRMSNorm",
+        norm_eps=1e-6,
+        _mlp_class="LLaMAMLP",
+        intermediate_size=5632,  # 4x n_embd recommended...
+        n_query_groups=4,
+    ),
+    dict(
+        org="StatNLP-research",
+        name="tiny_LLaMA_120M",
+        block_size=2048,
+        vocab_size=32768,
+        padding_multiple=64,
+        n_layer=12,
+        n_head=12,
+        n_embd=768,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        _norm_class="FusedRMSNorm",
+        norm_eps=1e-6,
+        _mlp_class="LLaMAMLP",
+        intermediate_size=2048,  # 4x n_embd recommended...
+        n_query_groups=1,
+    ),
+    dict(
+        org="StatNLP-research",
+        name="tiny_LLaMA_12M",
+        block_size=512,
+        vocab_size=32768,
+        padding_multiple=64,
+        n_layer=12,
+        n_head=4,
+        n_embd=128,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        _norm_class="FusedRMSNorm",
+        norm_eps=1e-6,
+        _mlp_class="LLaMAMLP",
+        intermediate_size=512,  # 4x n_embd
+        n_query_groups=1,
+    ),
+]
+configs.extend(tiny_LLaMA)
 
 name_to_config = {config["name"]: config for config in configs}
