@@ -46,7 +46,7 @@ micro_batch_size = 8
 gradient_accumulation_steps = batch_size // micro_batch_size
 assert gradient_accumulation_steps > 0
 max_iters = 600000  # num_epochs * (epoch_size // micro_batch_size) // devices
-warmup_iters = 0
+warmup_iters = 3000
 lr_decay_iters = max_iters
 
 learning_rate = 6e-4
@@ -139,9 +139,6 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
     else:
         strategy = "auto"
 
-    logger = step_csv_logger(
-        "out", name, cls=CSVLogger, flush_logs_every_n_steps=log_interval
-    )
     speed_monitor = SpeedMonitorCallback(
         length_fn=lambda batch: batch[0].size(1),
         batch_size=micro_batch_size,
@@ -187,9 +184,9 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
     train_data = Dataset(str(data_dir / "train.bin"), config.block_size)
     val_data = Dataset(str(data_dir / "val.bin"), config.block_size)
     train_dataloader = DataLoader(
-        train_data, batch_size=micro_batch_size, num_workers=2
+        train_data, batch_size=micro_batch_size, num_workers=8
     )
-    val_dataloader = DataLoader(val_data, batch_size=micro_batch_size, num_workers=2)
+    val_dataloader = DataLoader(val_data, batch_size=micro_batch_size, num_workers=8)
 
     t0 = time.perf_counter()
     trainer.fit(model, train_dataloader, val_dataloader, ckpt_path="last")
