@@ -10,4 +10,5 @@ jsonargparse[signatures]  # CLI
 # datasets  # quantize/gptq.py
 # zstandard  # scripts/prepare_redpajama.py
 # git+https://github.com/EleutherAI/lm-evaluation-harness.git@master  # eval
-# python-dotenv
+# pip install python-dotenv
+# pip install -U 'wandb>=0.12.10

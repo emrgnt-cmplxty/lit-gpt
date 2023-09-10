@@ -110,7 +110,7 @@ class Config:
             from lit_gpt.rmsnorm import RMSNorm
 
             return RMSNorm
-        # elif self._norm_class == "FusedRMSNorm":
+        # elif self._norm_class == "FusedRMSNorm"ƒ:
         #     from lit_gpt.rmsnorm import FusedRMSNorm
 
         #     return FusedRMSNorm
@@ -1046,7 +1046,25 @@ tiny_LLaMA = [
     ),
     dict(
         org="StatNLP-research",
-        name="tiny_LLaMA_120M",
+        name="tiny_LLaMA_360M",
+        block_size=2048,
+        vocab_size=32768,
+        padding_multiple=64,
+        n_layer=24,
+        n_head=16,
+        n_embd=1024,
+        rotary_percentage=1.0,
+        parallel_residual=False,
+        bias=False,
+        _norm_class="RMSNorm",
+        norm_eps=1e-6,
+        _mlp_class="LLaMAMLP",
+        intermediate_size=4096,
+        n_query_groups=1,
+    ),
+    dict(
+        org="StatNLP-research",
+        name="tiny_LLaMA_150M",
         block_size=2048,
         vocab_size=32768,
         padding_multiple=64,
@@ -1059,7 +1077,7 @@ tiny_LLaMA = [
         _norm_class="RMSNorm",
         norm_eps=1e-6,
         _mlp_class="LLaMAMLP",
-        intermediate_size=2048,  # 4x n_embd recommended...
+        intermediate_size=3072,
         n_query_groups=1,
     ),
     dict(

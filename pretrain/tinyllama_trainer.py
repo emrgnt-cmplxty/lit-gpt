@@ -30,7 +30,7 @@ from lit_gpt.utils import (
     step_csv_logger,
 )
 
-model_name = "tiny_LLaMA_12M"
+model_name = "tiny_LLaMA_150M"
 name = "concoction"
 out_dir = Path("out") / name
 data_dir = Path("data") / name
