@@ -1025,28 +1025,9 @@ configs.extend(stablecode)
 # StatNLP Research
 #############################
 tiny_LLaMA = [
-    # https://twitter.com/cwolferesearch/status/1691929174175264858
     dict(
-        org="StatNLP-research",
-        name="tiny_LLaMA_1b",
-        block_size=2048,
-        vocab_size=32768,
-        padding_multiple=64,
-        n_layer=22,
-        n_head=32,
-        n_embd=2048,
-        rotary_percentage=1.0,
-        parallel_residual=False,
-        bias=False,
-        _norm_class="RMSNorm",
-        norm_eps=1e-6,
-        _mlp_class="LLaMAMLP",
-        intermediate_size=5632,  # 4x n_embd recommended...
-        n_query_groups=4,
-    ),
-    dict(
-        org="StatNLP-research",
-        name="tiny_LLaMA_360M",
+        org="Emergent-AGI",
+        name="SmolKat_310M",
         block_size=2048,
         vocab_size=32768,
         padding_multiple=64,
@@ -1059,30 +1040,12 @@ tiny_LLaMA = [
         _norm_class="RMSNorm",
         norm_eps=1e-6,
         _mlp_class="LLaMAMLP",
-        intermediate_size=4096,
+        intermediate_size=2560,
         n_query_groups=1,
     ),
     dict(
-        org="StatNLP-research",
-        name="tiny_LLaMA_420M",
-        block_size=2048,
-        vocab_size=32768,
-        padding_multiple=64,
-        n_layer=12,
-        n_head=12,
-        n_embd=768,
-        rotary_percentage=1.0,
-        parallel_residual=False,
-        bias=False,
-        _norm_class="RMSNorm",
-        norm_eps=1e-6,
-        _mlp_class="LLaMAMLP",
-        intermediate_size=3072,
-        n_query_groups=1,
-    ),
-    dict(
-        org="StatNLP-research",
-        name="tiny_LLaMA_150M",
+        org="Emergent-AGI",
+        name="SmolKat_120M",
         block_size=1024,
         vocab_size=32768,
         padding_multiple=64,
@@ -1095,12 +1058,12 @@ tiny_LLaMA = [
         _norm_class="RMSNorm",
         norm_eps=1e-6,
         _mlp_class="LLaMAMLP",
-        intermediate_size=512,  # 4x n_embd
+        intermediate_size=1920,
         n_query_groups=1,
     ),
     dict(
-        org="StatNLP-research",
-        name="tiny_LLaMA_12M",
+        org="Emergent-AGI",
+        name="SmolKat_10M",
         block_size=512,
         vocab_size=32768,
         padding_multiple=64,
@@ -1113,7 +1076,7 @@ tiny_LLaMA = [
         _norm_class="RMSNorm",
         norm_eps=1e-6,
         _mlp_class="LLaMAMLP",
-        intermediate_size=512,  # 4x n_embd
+        intermediate_size=320,  # 2.5x n_embd
         n_query_groups=1,
     ),
 ]

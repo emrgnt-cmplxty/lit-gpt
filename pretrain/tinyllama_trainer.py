@@ -30,14 +30,36 @@ from lit_gpt.utils import (
     get_default_supported_precision,
 )
 
-model_name = "tiny_LLaMA_12M"
+model_name = "SmolKat_420M"  # "SmolKat_420M"
+num_devices = 1
 
 configs = {
-    "tiny_LLaMA_12M": {
+    "SmolKat_10M": {
         "micro_batch_size": 8,
-        "gradient_accumulation_steps": 5,
-    }
+        "target_batch_size": 256,
+    },
+    "SmolKat_120M": {
+        "micro_batch_size": 8,
+        "target_batch_size": 256,
+    },
+    "SmolKat_310M": {
+        "micro_batch_size": 8,
+        "target_batch_size": 256,
+    },
 }
+
+
+configs[model_name]["gradient_accumulation_steps"] = int(
+    configs[model_name]["target_batch_size"]
+    / configs[model_name]["micro_batch_size"]
+    * 1
+    / num_devices
+)
+
+print(
+    f"Running with Accumulation Steps = {configs[model_name]['gradient_accumulation_steps']}"
+)
+
 name = "concoction"
 out_dir = Path("out") / name
 data_dir = Path("data") / name
@@ -80,7 +102,9 @@ class LightningGPTModule(L.LightningModule):
     def configure_model(self) -> None:
         self.module = GPT(self.config)
         if os.path.exists("out/concoction/last.ckpt"):
-            checkpoint = torch.load("out/concoction/last.ckpt", map_location="cuda")
+            checkpoint = torch.load(
+                "out/concoction/last.ckpt"
+            )  # , map_location="cuda")
             self.module.load_state_dict(checkpoint["state_dict"])
         else:
             self.module.apply(self.module._init_weights)
