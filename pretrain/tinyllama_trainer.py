@@ -3,6 +3,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Optional
+import os
 
 import lightning as L
 import numpy as np
@@ -27,26 +28,31 @@ from lit_gpt.speed_monitor import SpeedMonitorCallback, estimate_flops, measure_
 from lit_gpt.utils import (
     chunked_cross_entropy,
     get_default_supported_precision,
-    step_csv_logger,
 )
 
-model_name = "tiny_LLaMA_150M"
+model_name = "tiny_LLaMA_12M"
+
+configs = {
+    "tiny_LLaMA_12M": {
+        "micro_batch_size": 8,
+        "gradient_accumulation_steps": 5,
+    }
+}
 name = "concoction"
 out_dir = Path("out") / name
 data_dir = Path("data") / name
-save_interval = 10
+save_interval = 500
 eval_interval = 1000
 eval_iters = 100
 log_interval = 1
 
 # Hyperparameters
-num_devices = 1
-batch_size = 8 * num_devices * 40
-micro_batch_size = 8
-gradient_accumulation_steps = batch_size // micro_batch_size
+micro_batch_size = configs[model_name]["micro_batch_size"]
+gradient_accumulation_steps = configs[model_name]["gradient_accumulation_steps"]
+## Batch Size = micro_batch_size * gradient_accumulation_steps
 assert gradient_accumulation_steps > 0
 max_iters = 600000  # num_epochs * (epoch_size // micro_batch_size) // devices
-warmup_iters = 3000
+warmup_iters = 3000  # try 3000 //
 lr_decay_iters = max_iters
 
 learning_rate = 6e-4
@@ -73,7 +79,11 @@ class LightningGPTModule(L.LightningModule):
 
     def configure_model(self) -> None:
         self.module = GPT(self.config)
-        self.module.apply(self.module._init_weights)
+        if os.path.exists("out/concoction/last.ckpt"):
+            checkpoint = torch.load("out/concoction/last.ckpt", map_location="cuda")
+            self.module.load_state_dict(checkpoint["state_dict"])
+        else:
+            self.module.apply(self.module._init_weights)
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         return torch.optim.AdamW(
@@ -148,7 +158,7 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
     model_checkpoint = ModelCheckpoint(
         dirpath=out_dir, every_n_train_steps=save_interval, save_last=True, verbose=True
     )
-    wandb_logger = WandbLogger(log_model="all")
+    wandb_logger = WandbLogger(log_model=True)
 
     trainer = L.Trainer(
         devices=devices,
