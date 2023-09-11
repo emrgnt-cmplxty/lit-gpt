@@ -43,7 +43,7 @@ configs = {
         "target_batch_size": 256,
     },
     "SmolKat_310M": {
-        "micro_batch_size": 8,
+        "micro_batch_size": 4,
         "target_batch_size": 256,
     },
 }
@@ -90,6 +90,46 @@ hparams = {
     for k, v in locals().items()
     if isinstance(v, (int, float, str)) and not k.startswith("_")
 }
+
+
+class Dataset(IterableDataset):
+    def __init__(self, data_file: Path, block_size: int, print_every: int = 1e10):
+        super().__init__()
+        self.data_file = data_file
+        self.block_size = block_size
+        self.print_every = print_every
+
+        # Create a shuffled list of indices
+        self.data = np.memmap(self.data_file, dtype=np.uint16, mode="r")
+        self.visited_indices = torch.randperm(len(self.data) - self.block_size).tolist()
+        self.counter = 0  # to count the number of indices we've visited
+
+    def __iter__(self):
+        step = 0
+        while True:
+            i = self.visited_indices[self.counter % len(self.visited_indices)]
+            self.counter += 1
+
+            # Once we've visited all indices twice, reshuffle
+            if self.counter == 2 * len(self.visited_indices):
+                self.counter = 0
+                self.visited_indices = torch.randperm(
+                    len(self.data) - self.block_size
+                ).tolist()
+
+            x = torch.from_numpy((self.data[i : i + self.block_size]).astype(np.int64))
+            y = torch.from_numpy(
+                (self.data[i + 1 : i + 1 + self.block_size]).astype(np.int64)
+            )
+
+            # Print every N steps
+            step += 1
+            if step % self.print_every == 0:
+                print(
+                    f"Dataset {step}: Working on index {i}, {self.block_size*step} tokens visited"
+                )
+
+            yield x, y
 
 
 class LightningGPTModule(L.LightningModule):
@@ -230,66 +270,6 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
     trainer.print(f"Training time: {(time.perf_counter()-t0):.2f}s")
     if trainer.strategy.root_device.type == "cuda":
         trainer.print(f"Memory used: {torch.cuda.max_memory_allocated() / 1e9:.02f} GB")
-
-    class Dataset(IterableDataset):
-        def __init__(self, data_file: Path, block_size: int, print_every: int = 1e10):
-            super().__init__()
-            self.data_file = data_file
-            self.block_size = block_size
-            self.print_every = print_every
-
-            # Create a shuffled list of indices
-            self.data = np.memmap(self.data_file, dtype=np.uint16, mode="r")
-            self.visited_indices = torch.randperm(
-                len(self.data) - self.block_size
-            ).tolist()
-            self.counter = 0  # to count the number of indices we've visited
-
-        def __iter__(self):
-            step = 0
-            while True:
-                i = self.visited_indices[self.counter % len(self.visited_indices)]
-                self.counter += 1
-
-                # Once we've visited all indices twice, reshuffle
-                if self.counter == 2 * len(self.visited_indices):
-                    self.counter = 0
-                    self.visited_indices = torch.randperm(
-                        len(self.data) - self.block_size
-                    ).tolist()
-
-                x = torch.from_numpy(
-                    (self.data[i : i + self.block_size]).astype(np.int64)
-                )
-                y = torch.from_numpy(
-                    (self.data[i + 1 : i + 1 + self.block_size]).astype(np.int64)
-                )
-
-                # Print every N steps
-                step += 1
-                if step % self.print_every == 0:
-                    print(
-                        f"Dataset {step}: Working on index {i}, {self.block_size*step} tokens visited"
-                    )
-
-                yield x, y
-
-
-# class Dataset(IterableDataset):
-#     def __init__(self, data_file: Path, block_size: int):
-#         super().__init__()
-#         self.data_file = data_file
-#         self.block_size = block_size
-
-#     def __iter__(self):
-#         data = np.memmap(self.data_file, dtype=np.uint16, mode="r")
-#         while True:
-#             i = torch.randint(len(data) - self.block_size, (1,)).item()
-#             x = torch.from_numpy((data[i : i + self.block_size]).astype(np.int64))
-#             y = torch.from_numpy(
-#                 (data[i + 1 : i + 1 + self.block_size]).astype(np.int64)
-#             )
-#             yield x, y
 
 
 # learning rate decay scheduler (cosine with warmup)
