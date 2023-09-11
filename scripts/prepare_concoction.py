@@ -5,11 +5,12 @@
 import os
 
 import numpy as np
-import tiktoken
-from datasets import load_dataset, concatenate_datasets  # huggingface datasets
+from datasets import load_dataset, concatenate_datasets
 from tqdm import tqdm
 from dotenv import load_dotenv
 from transformers import LlamaTokenizer
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 load_dotenv()
 
@@ -31,226 +32,254 @@ test_size = 0.01
 # Configurations for the dataset and processing
 
 config = {
-    "open-orca": {
-        "dataset_name": "Open-Orca/OpenOrca",
-        "test_size": test_size,
+    # "full-flan": {
+    #     "dataset_name": "SirNeural/flan_v2",
+    #     "shuffle": True,
+    #     "format": {
+    #         "instruction": "### Instruction:\n",
+    #         "response": "### Response:\n",
+    #     },
+    # },
+    "partial-flan": {
+        "dataset_name": "MBZUAI/LaMini-instruction",
         "shuffle": True,
         "format": {
-            "system_prompt": "### System Prompt:\n",
-            "question": "\n### Instruction:\n",
-            "response": "\n### Response:\n",
+            "instruction": lambda x: f"### Instruction:\n{x}",
+            "response": lambda x: f"\n### Response:\n{x}",
+        },
+    },
+    "open-hermes": {
+        "dataset_name": "teknium/openhermes",
+        "shuffle": True,
+        "format": {
+            "instruction": lambda x: f"### Instruction:\n{x}",
+            "output": lambda x: f"\n### Response:\n{x}",
+        },
+    },
+    "open-orca": {
+        "dataset_name": "Open-Orca/OpenOrca",
+        "shuffle": True,
+        "format": {
+            "system_prompt": lambda x: f"### System Prompt:\n{x}",
+            "question": lambda x: f"\n### Instruction:\n{x}",
+            "response": lambda x: f"\n### Response:\n{x}",
         },
     },
     "tiny-codes": {
         "dataset_name": "nampdn-ai/tiny-codes",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "prompt": "You are a helpful coding agent.\n### Instruction:\n",
-            "response": "\n### Response:\n",
+            "prompt": lambda x: f"### System:\nYou are a helpful agent.\n\n### Instruction:\n{x}",
+            "response": lambda x: f"\n### Response:\n{x}",
         },
     },
     "tiny-cot": {
         "dataset_name": "nampdn-ai/tiny-cot",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "source": "You are a helpful assistant that thinks step-by-step to solve instructions.\n### Instruction:\n",
-            "rationale": "\n### Response:\n### Thought:\n",
-            "target": "\n### Answer:\n",
+            "source": lambda x: f"You are a helpful assistant that thinks step-by-step to solve instructions.\n### Instruction:\n{x}",
+            "rationale": lambda x: f"\n### Response:\nI will begin by writing down my thoughts. {x}",
+            "target": lambda x: f"\nGiven my reasoning above, the answer must be {x}.",
         },
     },
     "wizardlm-orca": {
         "dataset_name": "psmathur/WizardLM_Orca",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "system": "",
-            "instruction": "### Instruction:\n",
-            "output": "\n### Response:\n",
+            "system": lambda x: f"### System:\n{x}",
+            "instruction": lambda x: f"### Instruction:\n{x}",
+            "output": lambda x: f"\n### Response:\n{x}",
         },
     },
     "cot-submix": {
         "dataset_name": "conceptofmind/cot_submix_original",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "inputs": "",
-            "targets": "",
+            "inputs": lambda x: x,
+            "targets": lambda x: x,
         },
     },
     "gpt-teacher": {
         "dataset_name": "teknium/GPTeacher-General-Instruct",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### Instruction:\n",
-            "input": "\n### Input:\n",
-            "response": "\n### Response:\n",
+            "instruction": lambda x: f"### Instruction:\n{x}",
+            "input": lambda x: f"\n### Input:\n{x}\n" if x != "" else "",
+            "response": lambda x: f"\n### Response:\n{x}",
         },
     },
     "alpaca-cleaned": {
         "dataset_name": "yahma/alpaca-cleaned",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### Instruction:\n",
-            "input": "\n### Input:\n",
-            "output": "\n### Response:\n",
+            "instruction": lambda x: f"### Instruction:\n{x}",
+            "input": lambda x: f"\n### Input:\n{x}\n" if x != "" else "",
+            "output": lambda x: f"\n### Response:\n{x}",
         },
     },
     "codealpaca-20k": {
         "dataset_name": "sahil2801/CodeAlpaca-20k",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### Instruction:\n",
-            "input": "\n",
-            "output": "### Response:\n",
+            "instruction": lambda x: f"### Instruction:\n{x}",
+            # "input": lambda x: f"", #
+            "output": lambda x: f"### Response:\n{x}",
         },
     },
     "unnatural": {
         "dataset_name": "TokenBender/unnatural_code_instructions_20M",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "text": "",
+            "text": lambda x: x,
         },
     },
     "evol-instruct-code-v1": {
         "dataset_name": "nickrosh/Evol-Instruct-Code-80k-v1",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### Instruction:\n",
-            "output": "\n### Response:\n",
+            "instruction": lambda x: f"### System:\nYou are a helpful assistant.\n\n### Instruction:\n{x}\n",
+            "output": lambda x: f"### Response:\n{x}",
         },
     },
     "open-platypus": {
         "dataset_name": "garage-bAInd/Open-Platypus",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### Instruction:\n",
-            "output": "\n### Response:\n",
+            "instruction": lambda x: f"### System:\nYou are a helpful assistant.\n\n### Instruction:\n{x}\n",
+            "output": lambda x: f"### Response:\n{x}",
         },
     },
     "evol-codealpaca-v1": {
         "dataset_name": "theblackcat102/evol-codealpaca-v1",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### Instruction:\n",
-            "output": "\n### Response:\n",
+            "instruction": lambda x: f"### System:\nYou are a helpful assistant.\n\n### Instruction:\n{x}\n",
+            "output": lambda x: f"### Response:\n{x}",
+        },
+    },
+    "link_soul_merge": {
+        "dataset_name": "LinkSoul/instruction_merge_set",
+        "shuffle": True,
+        "format": {
+            "conversations": lambda x: f"Below is a conversation between where a human instructs a helpful assistant named gpt, in JSON format.\n{x}",
         },
     },
     "vicuna_70k": {
         "dataset_name": "ehartford/wizard_vicuna_70k_unfiltered",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "conversations": "Below is a conversation between a human and a helpful agent, in JSON format.\n",
+            "conversations": lambda x: f"Below is a conversation between where a human instructs a helpful assistant named gpt, in JSON format.\n{x}",
         },
     },
     "chat_arena": {
         "dataset_name": "lmsys/chatbot_arena_conversations",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "conversation_a": "Below is a conversation between a human and a helpful agent, in JSON format.\n",
-            "conversation_b": "The following is a separate version of the same conversation, in JSON format.\n",
-        },
-    },
-    "llava_150k": {
-        "dataset_name": "liuhaotian/LLaVA-Instruct-150K",
-        "test_size": test_size,
-        "shuffle": True,
-        "format": {
-            "conversations": "Below is a conversation between a human and a helpful agent, in JSON format.\n",
+            "conversation_a": lambda x: f"Below is a conversation between a human and a helpful agent, in JSON format.\n{x}",
+            "conversation_b": lambda x: f"The following is a similar conversation with a different agent responding, in JSON format.\n{x}",
         },
     },
     "kaist_ai_cot": {
         "dataset_name": "kaist-ai/CoT-Collection",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "source": "You are a helpful assistant that thinks step-by-step to solve instructions.\n### Instruction:\n",
-            "rationale": "\n### Response:\n### Thought:\n",
-            "target": "\n### Answer:\n",
+            "source": lambda x: "### System:\nYou are a helpful assistant that thinks step-by-step to solve instructions. Please encase your final solution in \\boxed{SOLUTION}\n\n### Instruction:\n"
+            + x,
+            "rationale": lambda x: f"\n### Response:\nI will begin by writing down my thoughts.\n\n{x}",
+            "target": lambda x: "\nFrom the logic above, I can see that the answer is \\boxed{"
+            + x
+            + "}",
         },
     },
     "leetcode_with_solutions": {
         "dataset_name": "mhhmm/leetcode-solutions-python",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "code_with_data": "Below is a coding problem with the correct solution:\n",
-            "explanation_only": "Here is an explanation for the solution:\n",
+            "code_with_data": lambda x: "Below is a coding problem with the correct solution.\n\n### Problem:\n"
+            + x.replace("```python", """\n### Solution:\n```python"""),
+            "explanation_only": lambda x: f"And here is an explanation for the solution:\n{x}",
         },
     },
     "tiny_stories": {
         "dataset_name": "skeskinen/TinyStories-GPT4",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "prompt": "",
-            "story": "\n",
-            "summary": "\n ### Summary:\n",
+            "prompt": lambda x: f"{x}\n",
+            "story": lambda x: f"{x}\n",
+            "summary": lambda x: f"### Summary:\n{x}\n",
         },
     },
     "claude_instruct": {
         "dataset_name": "Norquinal/claude_evol_instruct_210k",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### Instruction:\n",
-            "output": "\n### Response:\n",
+            "instruction": lambda x: f"### System:\nYou are a helpful assistant.\n\n### Instruction:\n{x}\n",
+            "output": lambda x: f"### Response:\n{x}",
         },
     },
     "airoboros": {
         "dataset_name": "jondurbin/airoboros-2.1",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "system": "",
-            "instruction": "### Instruction:\n",
-            "response": "\n### Response:\n",
+            "system": lambda x: f"### System Prompt:\n{x.replace('A chat.', 'You are a helpful assistant.')}\n",
+            "instruction": lambda x: f"\n### Instruction:\n{x}\n",
+            "response": lambda x: f"### Response:\n{x}",
         },
     },
     "databricks-dolly": {
         "dataset_name": "databricks/databricks-dolly-15k",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "instruction": "### User:\n",
-            "response": "\n### Assistant:\n",
+            "instruction": lambda x: f"### System:\nYou are a helpful assistant that quickly and accurately answers user questions.\n\n### User:\n{x}\n",
+            "response": lambda x: f"### Assistant:\n{x}",
         },
     },
     "claude_chats": {
         "dataset_name": "Norquinal/claude_multiround_chat_30k",
-        "test_size": test_size,
         "shuffle": True,
         "format": {
-            "conversations": "Below is a conversation between a human and a helpful assistant, in JSON format.\n",
+            "conversations": lambda x: f"\nBelow is a conversation between a human and a helpful assistant, in JSON format.\n{x}",
         },
     },
 }
 # Short List For Addition
-# https://huggingface.co/datasets/kaist-ai/CoT-Collection/viewer/en/train?row=1
+
+## Has a lot of crufty tokens
 # https://huggingface.co/datasets/nomic-ai/gpt4all_prompt_generations
+
+## Requires extra work -
 # https://huggingface.co/datasets/Muennighoff/natural-instructions/viewer/default/train?row=1
+
+## Seems low-ish quality
 # https://huggingface.co/datasets/laion/OIG
-# https://huggingface.co/datasets/roneneldan/TinyStories
-# https://huggingface.co/datasets/SirNeural/flan_v2
-# https://huggingface.co/datasets/stingning/ultrachat
-# https://huggingface.co/datasets/laion/OIG
+
+## Is fucking huge....
 # https://huggingface.co/datasets/Open-Orca/FLAN
-# https://huggingface.co/datasets/MBZUAI/LaMini-instruction/viewer/default/train?p=2&row=204
-# https://huggingface.co/datasets/NTU-NLP-sg/xCodeEval
+
+# Needs some TLC to remove 'as a large language model ...', but otherwise looks good.
+# "ultra-chat" : {
+#     "dataset_name": "stingning/ultrachat",
+#     "shuffle": True,
+# }
+# https://huggingface.co/datasets/stingning/ultrachat
+
+# Format is not ready
 # https://huggingface.co/datasets/camel-ai/math
+
+# Too abstract / high level and requires nuanced reasoning
 # https://huggingface.co/datasets/eli5_category/viewer/default/train?row=31
+
+# Probably duplicated by OpenOrca
 # https://huggingface.co/datasets/ehartford/dolphin/viewer/default/train?row=10
+
+# A mixture of other datasets..
 # https://huggingface.co/datasets/StudentLLM/Open-Wyvern-74k
+
+# Crufty
+# https://huggingface.co/datasets/ChristophSchuhmann/basic-math-problems-with-step-by-step-solutions/viewer/default/train?p=1
+
+# QingyiSi/Alpaca-CoT
+# Comprehensive, but crufty
 
 
 def load_and_split_dataset(config):
@@ -259,11 +288,12 @@ def load_and_split_dataset(config):
         config["dataset_name"],
         num_proc=num_proc_load_dataset,
         token=os.getenv("HF_TOKEN", None),
+        # cache_dir="/Volumes/Elements/HuggingFaceDatasets",
     )
 
     # Only contains the 'train' split, so create a test split
     split_dataset = dataset["train"].train_test_split(
-        test_size=config["test_size"],
+        test_size=test_size,
         seed=seed,
         shuffle=config["shuffle"],
     )
@@ -293,6 +323,19 @@ def tokenize_dataset(split_dataset, config):
         ids.append(enc.eos_token_id)
         return {"ids": ids, "len": len(ids)}
 
+    print("Printing example splits")
+    for i in range(1):
+        print("-" * 100)
+        print(
+            "\n".join(
+                [
+                    f"{format_dict[col](split_dataset['train'][i][col])}"
+                    for col in columns
+                ]
+            )
+        )
+        print("-" * 100)
+
     tokenized = split_dataset.map(
         process,
         remove_columns=columns,
@@ -301,6 +344,14 @@ def tokenize_dataset(split_dataset, config):
     )
 
     return tokenized
+
+
+def save_to_parquet(tokenized_dataset, output_path):
+    """Save the dataset in Parquet format."""
+    table = pa.Table.from_pandas(tokenized_dataset.to_pandas())
+    with pa.OSFile(output_path, "wb") as f:
+        with pa.RecordBatchFileWriter(f, table.schema) as writer:
+            writer.write_table(table)
 
 
 if __name__ == "__main__":
@@ -315,12 +366,12 @@ if __name__ == "__main__":
         print("Loading dataset now...")
         selected_config = config[key]
         split_data = load_and_split_dataset(selected_config)
-
         # Get the tokenizer encoding based on the configuration
         print("Tokenizing now...")
         # Tokenize the data based on the configuration
         tokenized_data = tokenize_dataset(split_data, selected_config)
         tokens = np.sum(tokenized_data["train"]["len"]) / 1e6
+        print(f"Tokens = {tokens}M")
         total_tokens += tokens
         print(f"Total Tokens = {total_tokens}M")
         if not results_train:
@@ -333,27 +384,21 @@ if __name__ == "__main__":
             results_val = concatenate_datasets(
                 [results_val, tokenized_data["val"]]
             ).shuffle(seed=seed)
-    tokenized = {
-        "train": results_train,
-        "val": results_val,
-    }
-    print("Creating the test-train split")
-    # concatenate all the ids in each dataset into one large file we can use for training
-    for split, dset in tokenized.items():
-        arr_len = np.sum(dset["len"], dtype=np.uint64)
-        filename = os.path.join(os.path.dirname(__file__), f"{split}.bin")
-        dtype = np.uint16  # (can do since enc.max_token_value == 50256 is < 2**16)
-        arr = np.memmap(filename, dtype=dtype, mode="w+", shape=(arr_len,))
-        total_batches = 1024
 
-        idx = 0
-        for batch_idx in tqdm(range(total_batches), desc=f"writing {filename}"):
-            # Batch together samples for faster write
-            batch = dset.shard(
-                num_shards=total_batches, index=batch_idx, contiguous=True
-            ).with_format("numpy")
-            arr_batch = np.concatenate(batch["ids"])
-            # Write into mmap
-            arr[idx : idx + len(arr_batch)] = arr_batch
-            idx += len(arr_batch)
-        arr.flush()
+        # Save the Arrow table as a Parquet file
+        if not os.path.exists(key):
+            os.mkdir(key)
+        print("Saving results...")
+        table = results_train.with_format("arrow").data
+        # Save the Arrow table as a Parquet file
+        df = results_train.to_pandas()
+        # Convert the DataFrame to an Arrow table
+        table = pa.Table.from_pandas(df)
+        pq.write_table(table, f"{key}/{key}_train.parquet")
+
+        table = results_val.with_format("arrow").data
+        # Save the Arrow table as a Parquet file
+        df = results_val.to_pandas()
+        # Convert the DataFrame to an Arrow table
+        table = pa.Table.from_pandas(df)
+        pq.write_table(table, f"{key}/{key}_val.parquet")
