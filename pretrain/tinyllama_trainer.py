@@ -30,7 +30,7 @@ from lit_gpt.utils import (
     get_default_supported_precision,
 )
 
-model_name = "SmolKat_420M"  # "SmolKat_420M"
+model_name = "SmolKat_310M"  #
 num_devices = 1
 
 configs = {
