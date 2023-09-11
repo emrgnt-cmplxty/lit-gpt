@@ -43,7 +43,7 @@ configs = {
         "target_batch_size": 256,
     },
     "SmolKat_310M": {
-        "micro_batch_size": 4,
+        "micro_batch_size": 5,
         "target_batch_size": 256,
     },
 }
@@ -140,7 +140,15 @@ class Dataset(IterableDataset):
 
     def __iter__(self):
         data = np.memmap(self.data_file, dtype=np.uint16, mode="r")
+        step = 0
+
         while True:
+            step += 1
+            if step % self.print_every == 0:
+                print(
+                    f"Dataset {step}: Working on index {i}, {self.block_size*step} tokens visited"
+                )
+
             i = torch.randint(len(data) - self.block_size, (1,)).item()
             x = torch.from_numpy((data[i : i + self.block_size]).astype(np.int64))
             y = torch.from_numpy(
