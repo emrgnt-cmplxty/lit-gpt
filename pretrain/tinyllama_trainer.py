@@ -273,9 +273,7 @@ def main(devices: int = 1, precision: Optional[str] = None) -> None:
         f"Time to instantiate model: {time.perf_counter() - t0:.02f} seconds."
     )
 
-    train_data = Dataset(
-        str(data_dir / "train.bin"), config.block_size, dataset_logging_interval
-    )
+    train_data = Dataset(str(data_dir / "train.bin"), config.block_size)
     val_data = Dataset(str(data_dir / "val.bin"), config.block_size)
     train_dataloader = DataLoader(
         train_data, batch_size=micro_batch_size, num_workers=8
