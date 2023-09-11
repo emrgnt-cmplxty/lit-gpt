@@ -144,7 +144,7 @@ class Dataset(IterableDataset):
 
         while True:
             step += 1
-            if step % self.print_every == 0:
+            if step % dataset_logging_interval == 0:
                 print(
                     f"Dataset {step}: Working on index {i}, {self.block_size*step} tokens visited"
                 )
