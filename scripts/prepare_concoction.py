@@ -3,6 +3,7 @@
 # https://github.com/HazyResearch/flash-attention/blob/main/training/src/datamodules/language_modeling_hf.py
 
 import os
+import urllib.parse
 
 import numpy as np
 from datasets import load_dataset, concatenate_datasets
@@ -32,14 +33,6 @@ test_size = 0.01
 # Configurations for the dataset and processing
 
 config = {
-    # "full-flan": {
-    #     "dataset_name": "SirNeural/flan_v2",
-    #     "shuffle": True,
-    #     "format": {
-    #         "instruction": "### Instruction:\n",
-    #         "response": "### Response:\n",
-    #     },
-    # },
     "partial-flan": {
         "dataset_name": "MBZUAI/LaMini-instruction",
         "shuffle": True,
@@ -282,14 +275,63 @@ config = {
 # Comprehensive, but crufty
 
 
+file_names = [
+    "cot_fs_noopt_train.jsonl.gz",
+    "cot_fs_opt_train.jsonl.gz",
+    "cot_zs_noopt_train.jsonl.gz",
+    "cot_zs_opt_train.jsonl.gz",
+    "dialog_fs_noopt_train.jsonl.gz",
+    "dialog_fs_opt_train.jsonl.gz",
+    "dialog_zs_noopt_train.jsonl.gz",
+    "dialog_zs_opt_train.jsonl.gz",
+    "flan_fs_noopt_train.jsonl.gz",
+    "flan_fs_opt_train_part1.jsonl.gz",
+    "flan_fs_opt_train_part2.jsonl.gz",
+    "flan_fs_opt_train_part3.jsonl.gz",
+    "flan_zs_noopt_train.jsonl.gz",
+    "flan_zs_opt_train.jsonl.gz",
+    "niv2_fs_noopt_train.jsonl.gz",
+    "niv2_fs_opt_train.jsonl.gz",
+    "niv2_zs_noopt_train.jsonl.gz",
+    "niv2_zs_opt_train.jsonl.gz",
+    "t0_fs_noopt_train.jsonl.gz",
+    "t0_zs_noopt_train.jsonl.gz",
+    "t0_zs_opt_train.jsonl.gz",
+]
+
+base_config = {
+    "dataset_name": "",
+    "shuffle": True,
+    "format": {
+        "inputs": lambda x: x,
+        "targets": lambda x: x,
+    },
+}
+base_path = "/home/owen/test_run/flan_data/"
+
+for file_name in file_names:
+    key = file_name.rsplit(".", 2)[0]  # Remove ".jsonl.gz" to get the key
+    new_config = base_config.copy()
+    new_config["dataset_name"] = base_path + file_name
+    config[f"flan_data-{key}"] = new_config
+
+
 def load_and_split_dataset(config):
     """Load the dataset and split into train and validation sets."""
-    dataset = load_dataset(
-        config["dataset_name"],
-        num_proc=num_proc_load_dataset,
-        token=os.getenv("HF_TOKEN", None),
-        # cache_dir="/Volumes/Elements/HuggingFaceDatasets",
-    )
+    if "flan_data" in config["dataset_name"]:
+        dataset = load_dataset(
+            path="json",
+            data_files=config["dataset_name"],
+            # split="train",
+            num_proc=num_proc_load_dataset,
+        )
+    else:
+        dataset = load_dataset(
+            config["dataset_name"],
+            num_proc=num_proc_load_dataset,
+            token=os.getenv("HF_TOKEN", None),
+            # cache_dir="/Volumes/Elements/HuggingFaceDatasets",
+        )
 
     # Only contains the 'train' split, so create a test split
     split_dataset = dataset["train"].train_test_split(
@@ -316,8 +358,10 @@ def tokenize_dataset(split_dataset, config):
 
     def process(example):
         # Use the formatter to format each column
-        text = "\n".join(
-            [f"{format_dict.get(col, '{}')} {example[col]}" for col in columns]
+        text = urllib.parse.unquote(
+            "\n".join(
+                [f"{format_dict.get(col, '{}')} {example[col]}" for col in columns]
+            )
         )
         ids = enc.encode(text)
         ids.append(enc.eos_token_id)
@@ -325,8 +369,7 @@ def tokenize_dataset(split_dataset, config):
 
     print("Printing example splits")
     for i in range(1):
-        print("-" * 100)
-        print(
+        x = urllib.parse.unquote(
             "\n".join(
                 [
                     f"{format_dict[col](split_dataset['train'][i][col])}"
@@ -334,6 +377,8 @@ def tokenize_dataset(split_dataset, config):
                 ]
             )
         )
+        print("-" * 100)
+        print(x)
         print("-" * 100)
 
     tokenized = split_dataset.map(
@@ -393,12 +438,12 @@ if __name__ == "__main__":
         # Save the Arrow table as a Parquet file
         df = results_train.to_pandas()
         # Convert the DataFrame to an Arrow table
-        table = pa.Table.from_pandas(df)
+        table = pa.Table.from_pandas(df[["ids"]])
         pq.write_table(table, f"{key}/{key}_train.parquet")
 
         table = results_val.with_format("arrow").data
         # Save the Arrow table as a Parquet file
         df = results_val.to_pandas()
         # Convert the DataFrame to an Arrow table
-        table = pa.Table.from_pandas(df)
+        table = pa.Table.from_pandas(df[["ids"]])
         pq.write_table(table, f"{key}/{key}_val.parquet")
